@@ -1,0 +1,19 @@
+- hosts: all
+  remote_user: root
+  var:
+    pass: '57rvS6FdPkNb'
+    domain: 'EINE-DOMAIN.DE'
+  tasks:
+    - apt:
+        name:
+          - strongswan
+          - strongswan-pki
+        update_cache: yes
+        force_apt_get: yes
+
+    - template:
+        src: 'etc-ipsec.conf'
+        dest: '/etc/ipsec.conf'
+        owner: root
+        group: root
+        mode: 0600
