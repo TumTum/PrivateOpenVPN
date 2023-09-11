@@ -17,3 +17,7 @@
         owner: root
         group: root
         mode: 0600
+  
+    - name: "Create CA"
+      script: "VPNCert.sh {{domain}}"
+
