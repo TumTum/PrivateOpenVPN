@@ -1,5 +1,5 @@
-VPN Server
-----------
+IKEv2 VPN Server
+----------------
 
 Eigen verwalteter Server in Ubuntu 22.04.
 
