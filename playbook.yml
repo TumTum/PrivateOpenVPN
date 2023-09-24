@@ -1,23 +1,116 @@
+---
 - hosts: all
   remote_user: root
-  var:
-    pass: '57rvS6FdPkNb'
+  vars:
     domain: 'EINE-DOMAIN.DE'
   tasks:
-    - apt:
+    - name: Install strongswan
+      apt:
         name:
           - strongswan
           - strongswan-pki
+          - libcharon-extra-plugins
+          - libcharon-extauth-plugins
+          - libstrongswan-extra-plugins
+          - libtss2-tcti-tabrmd0
         update_cache: yes
         force_apt_get: yes
 
-    - template:
+    - name: Copy ipsec.conf
+      template:
         src: 'etc-ipsec.conf'
         dest: '/etc/ipsec.conf'
         owner: root
         group: root
-        mode: 0600
-  
-    - name: "Create CA"
-      script: "VPNCert.sh {{domain}}"
+        mode: 0640
 
+    - name: delete directory pki
+      file:
+        path: ~/pki
+        state: absent
+
+    - name: Add directories
+      file:
+        path: ~/pki/{{ item }}
+        state: directory
+        mode: '0700'
+      loop:
+        - cacerts
+        - certs
+        - private
+
+    - name: Create CA
+      script: 'VPNCert.sh {{domain}}'
+
+    - name: Copy ipsec.serects
+      template:
+        src: 'ipsec.secrets'
+        dest: '/etc/ipsec.secrets'
+        owner: root
+        group: root
+        mode: 0640
+
+    - name: Reload strongswan
+      systemd:
+        name: strongswan-starter
+        state: reloaded
+
+    - name: ufw allow outgoing
+      ufw:
+        direction: outgoing
+        proto: any
+        policy: allow
+      notify:
+      - reload ufw
+
+    - name: ufw allow ssh
+      ufw:
+        rule: allow
+        name: OpenSSH
+      notify:
+      - reload ufw
+
+    - name: enable ufw service
+      ufw:
+        state: enabled
+
+    - name: Allow UDP port 500,4500
+      ufw:
+        rule: allow
+        port: '{{ item }}'
+        proto: udp
+      loop:
+        - 500
+        - 4500
+
+    - name: Copy before.rules
+      template:
+        src: 'before-rules'
+        dest: '/etc/ufw/before.rules'
+        owner: root
+        group: root
+        mode: 0640
+
+    - name: Uncomment ipv4 ip forward
+      replace:
+        path: /etc/ufw/sysctl.conf
+        regexp: '#net/ipv4/ip_forward=1'
+        replace: 'net/ipv4/ip_forward=1'
+
+    - name: add to /etc/ufw/sysctl.conf
+      lineinfile:
+        dest: '/etc/ufw/sysctl.conf'
+        insertafter: 'net/ipv4/conf/default/accept_redirects=0'
+        line: 'net/ipv4/conf/all/send_redirects=0'
+
+    - name: add to end of /etc/ufw/sysctl.conf
+      lineinfile:
+        dest: '/etc/ufw/sysctl.conf'
+        line: 'net/ipv4/ip_no_pmtu_disc=1'
+      notify:
+      - reload ufw
+
+  handlers:
+    - name: reload ufw
+      ufw:
+        state: reloaded
