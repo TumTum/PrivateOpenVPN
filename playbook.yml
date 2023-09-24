@@ -49,11 +49,8 @@
         owner: root
         group: root
         mode: 0640
-
-    - name: Reload strongswan
-      systemd:
-        name: strongswan-starter
-        state: reloaded
+      notify:
+      - restart strongswan
 
     - name: ufw allow outgoing
       ufw:
@@ -109,8 +106,13 @@
         line: 'net/ipv4/ip_no_pmtu_disc=1'
       notify:
       - reload ufw
+      - restart strongswan
 
   handlers:
     - name: reload ufw
       ufw:
         state: reloaded
+    - name: restart strongswan
+      systemd:
+        name: strongswan-starter
+        state: restarted
